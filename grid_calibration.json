@@ -1,0 +1,117 @@
+{
+  "cube_height": 25.0,
+  "z_safe": 80.0,
+  "approach_offset": 15.0,
+  "center_z_ref": "base",
+  "place_z_offset": 0.0,
+  "slots": [
+    {
+      "slot_id": 1,
+      "name": "Slot 1 (บนซ้าย)",
+      "row": 0,
+      "col": 0,
+      "x": 212.72,
+      "y": 15.85,
+      "z": -44.95,
+      "r": 0.0,
+      "color": "red",
+      "has_cube": true
+    },
+    {
+      "slot_id": 2,
+      "name": "Slot 2 (บน)",
+      "row": 0,
+      "col": 1,
+      "x": 211.5,
+      "y": -10.46,
+      "z": -42.57,
+      "r": 0.0,
+      "color": "green",
+      "has_cube": true
+    },
+    {
+      "slot_id": 3,
+      "name": "Slot 3 (บนขวา)",
+      "row": 0,
+      "col": 2,
+      "x": 210.25,
+      "y": -37.09,
+      "z": -47.06,
+      "r": 0.0,
+      "color": "red",
+      "has_cube": true
+    },
+    {
+      "slot_id": 4,
+      "name": "Slot 4 (ซ้าย)",
+      "row": 1,
+      "col": 0,
+      "x": 181.89,
+      "y": 15.67,
+      "z": -48.61,
+      "r": 0.0,
+      "color": "blue",
+      "has_cube": true
+    },
+    {
+      "slot_id": 9,
+      "name": "Center (จุดวาง)",
+      "row": 1,
+      "col": 1,
+      "x": 177.74,
+      "y": -7.89,
+      "z": -72.94,
+      "r": 0.0,
+      "color": "white",
+      "has_cube": false
+    },
+    {
+      "slot_id": 5,
+      "name": "Slot 5 (ขวา)",
+      "row": 1,
+      "col": 2,
+      "x": 181.02,
+      "y": -34.45,
+      "z": -47.38,
+      "r": 0.0,
+      "color": "yellow",
+      "has_cube": true
+    },
+    {
+      "slot_id": 6,
+      "name": "Slot 6 (ล่างซ้าย)",
+      "row": 2,
+      "col": 0,
+      "x": 147.33,
+      "y": 18.13,
+      "z": -51.2,
+      "r": 0.0,
+      "color": "purple",
+      "has_cube": true
+    },
+    {
+      "slot_id": 7,
+      "name": "Slot 7 (ล่าง)",
+      "row": 2,
+      "col": 1,
+      "x": 147.12,
+      "y": -7.55,
+      "z": -49.79,
+      "r": 0.0,
+      "color": "blue",
+      "has_cube": true
+    },
+    {
+      "slot_id": 8,
+      "name": "Slot 8 (ล่างขวา)",
+      "row": 2,
+      "col": 2,
+      "x": 144.54,
+      "y": -30.98,
+      "z": -51.35,
+      "r": 0.0,
+      "color": "orange",
+      "has_cube": true
+    }
+  ]
+}

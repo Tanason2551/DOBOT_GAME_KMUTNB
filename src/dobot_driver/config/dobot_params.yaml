@@ -1,0 +1,7 @@
+dobot_driver_node:
+  ros__parameters:
+    model_type: "auto"        # "magician", "mg400", "mock", or "auto"
+    port: ""                  # e.g., "/dev/ttyUSB0" (leave empty for auto scan)
+    baudrate: 115200          # Serial baudrate for Magician
+    ip: "192.168.1.6"         # Ethernet IP for MG400 / CR
+    publish_rate: 20.0        # State publish rate in Hz

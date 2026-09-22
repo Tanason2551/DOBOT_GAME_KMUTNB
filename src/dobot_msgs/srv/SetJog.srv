@@ -1,0 +1,9 @@
+# axis: 'X', 'Y', 'Z', 'R', 'J1', 'J2', 'J3', 'J4'
+string axis
+# direction: 1 (positive), -1 (negative), 0 (stop)
+int8 direction
+# step: 0.0 for continuous, >0 for incremental distance (mm or deg)
+float64 step
+---
+bool success
+string message

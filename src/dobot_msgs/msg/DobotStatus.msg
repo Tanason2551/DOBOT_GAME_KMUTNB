@@ -1,0 +1,9 @@
+bool is_connected
+string model_name
+string connection_type
+string status_message
+bool is_moving
+bool suction_cup_state
+bool gripper_state
+float64 speed_ratio
+uint32[] alarms

@@ -1,0 +1,9 @@
+uint8 TYPE_SUCTION = 0
+uint8 TYPE_GRIPPER = 1
+
+uint8 effector_type
+bool enable
+bool state
+---
+bool success
+string message
