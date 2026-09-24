@@ -83,10 +83,13 @@ class DobotMainWindow(QtWidgets.QMainWindow):
         # --- Main Body: Split into Tabs and Side Camera Panel ---
         body_splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
 
+        # Right Container: Camera on Top, Real-time Monitor on Bottom (Always Visible)
+        self.cam_widget = CameraWidget()
+
         # Left Container: Tabs
         self.tabs = QtWidgets.QTabWidget()
         self.tab_pnp = PnpMissionTab(self.bridge, self.grid_model)
-        self.tab_teach = GridTeachingTab(self.bridge, self.grid_model)
+        self.tab_teach = GridTeachingTab(self.bridge, self.grid_model, camera_widget=self.cam_widget)
         self.tab_manual = ManualControlTab(self.bridge)
         self.tab_conn = ConnectionTab(self.bridge)
 
@@ -97,14 +100,12 @@ class DobotMainWindow(QtWidgets.QMainWindow):
 
         body_splitter.addWidget(self.tabs)
 
-        # Right Container: Camera on Top, Real-time Monitor on Bottom (Always Visible)
         right_splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
 
         # Top Right: Live Camera View
         cam_panel = QtWidgets.QGroupBox("📹 กล้องมอนิเตอร์สด (Live Camera Monitor)")
         cam_layout = QtWidgets.QVBoxLayout(cam_panel)
         cam_layout.setContentsMargins(6, 10, 6, 6)
-        self.cam_widget = CameraWidget()
         cam_layout.addWidget(self.cam_widget)
         right_splitter.addWidget(cam_panel)
 
@@ -140,6 +141,9 @@ class DobotMainWindow(QtWidgets.QMainWindow):
 
         # Sync grid teaching tab updates to mission tab grid widget and height previews
         self.tab_teach.sig_model_updated.connect(self.tab_pnp.sync_from_model)
+
+        # Trigger camera scan from side camera widget
+        self.cam_widget.sig_scan_color_requested.connect(self.tab_teach._on_scan_all_colors)
 
     def _on_connection_changed(self, connected: bool, message: str):
         if connected:

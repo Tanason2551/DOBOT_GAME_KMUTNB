@@ -93,6 +93,15 @@ class CameraWorker(QtCore.QThread):
         self.camera_index = camera_index
         self._running = False
         self.cap = None
+        self._last_bgr_frame = None
+        self._frame_lock = threading.Lock()
+
+    def get_last_bgr_frame(self):
+        """Thread-safe retrieval of the most recently acquired BGR frame."""
+        with self._frame_lock:
+            if self._last_bgr_frame is not None:
+                return self._last_bgr_frame.copy()
+            return None
 
     def run(self):
         if not OPENCV_AVAILABLE:
@@ -132,6 +141,10 @@ class CameraWorker(QtCore.QThread):
 
             consecutive_read_failures = 0
 
+            # Cache the raw BGR frame
+            with self._frame_lock:
+                self._last_bgr_frame = frame.copy()
+
             # Calculate FPS
             now = time.time()
             dt = now - prev_time
@@ -166,6 +179,8 @@ class CameraWorker(QtCore.QThread):
 
 class CameraWidget(QtWidgets.QWidget):
     """Video feed viewer with camera selection, crosshair, grid overlay, and controls."""
+
+    sig_scan_color_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -266,8 +281,26 @@ class CameraWidget(QtWidgets.QWidget):
         self.lbl_cam_info = QtWidgets.QLabel("Status: Idle")
         self.lbl_cam_info.setStyleSheet("color: #94A3B8; font-size: 11px;")
 
+        self.btn_scan_colors = QtWidgets.QPushButton("📸 สแกนสี")
+        self.btn_scan_colors.setFixedHeight(22)
+        self.btn_scan_colors.setStyleSheet("""
+            QPushButton {
+                background-color: #065F46;
+                color: #6EE7B7;
+                border: 1px solid #10B981;
+                font-size: 10px;
+                font-weight: bold;
+                padding: 1px 6px;
+                border-radius: 3px;
+            }
+            QPushButton:hover { background-color: #047857; color: #FFFFFF; }
+        """)
+        self.btn_scan_colors.setToolTip("เปิดหน้าต่างสแกนสีลูกบาศก์บนสนาม 3x3")
+        self.btn_scan_colors.clicked.connect(self.sig_scan_color_requested.emit)
+
         row_opts.addWidget(self.chk_crosshair)
         row_opts.addWidget(self.chk_grid)
+        row_opts.addWidget(self.btn_scan_colors)
         row_opts.addStretch()
         row_opts.addWidget(self.lbl_cam_info)
 
@@ -415,6 +448,32 @@ class CameraWidget(QtWidgets.QWidget):
         )
         self.lbl_video.setPixmap(scaled_pixmap)
         self.lbl_cam_info.setText(f"{width}x{height} | {fps:.1f} FPS")
+
+    def get_current_bgr_frame(self):
+        """Return latest BGR frame from the active camera worker, or capture a single frame."""
+        if self.is_active and self.worker:
+            frame = self.worker.get_last_bgr_frame()
+            if frame is not None:
+                return frame
+
+        # If camera stream is not actively running, attempt a single snapshot
+        if OPENCV_AVAILABLE:
+            cam_id = self.get_selected_camera_index()
+            try:
+                cap = cv2.VideoCapture(cam_id, cv2.CAP_V4L2 if hasattr(cv2, "CAP_V4L2") else 0)
+                if not cap.isOpened():
+                    cap = cv2.VideoCapture(cam_id)
+                if cap.isOpened():
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                    time.sleep(0.12)
+                    ret, frame = cap.read()
+                    cap.release()
+                    if ret and frame is not None:
+                        return frame
+            except Exception:
+                pass
+        return None
 
     def closeEvent(self, event):
         self.stop_camera()

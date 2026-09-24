@@ -35,10 +35,13 @@ class ConnectionTab(QtWidgets.QWidget):
         self.combo_model = QtWidgets.QComboBox()
         self.combo_model.addItems([
             "Auto-Detect (ตรวจจับพอร์ตอัตโนมัติ)",
-            "Dobot Magician / Lite (4-DOF USB Serial)",
+            "Dobot Magician (Custom Protocol Driver - USB to UART แนะนำ)",
+            "Dobot Magician (pydobot Driver - Dobot 1 Library)",
+            "Dobot Magician (pydobot2 Driver - Dobot 2 Library)",
+            "Dobot MG400 / CR Series (TCP/IP)",
             "Simulation Mode (จำลองเสมือนจริง)"
         ])
-        conn_layout.addRow("เลือกรุ่นแขนกล (Model):", self.combo_model)
+        conn_layout.addRow("เลือกรุ่นแขนกล / ไดรเวอร์:", self.combo_model)
 
         # Serial Port & Refresh
         port_box = QtWidgets.QHBoxLayout()
@@ -138,22 +141,44 @@ class ConnectionTab(QtWidgets.QWidget):
         guide_text.setHtml("""
         <h3 style="color: #60A5FA; margin-top: 0;">คำแนะนำการเชื่อมต่อแขนกล Dobot:</h3>
         
-        <div style="margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">
-            <b style="color: #34D399; font-size: 14px;">1. Dobot Magician / Magician Lite (4-DOF USB Serial)</b>
-            <ul style="color: #CBD5E1; margin: 4px 0 0 16px;">
-                <li><b>การเชื่อมต่อ:</b> เสียบสาย <b>USB (Type-B ทรงเหลี่ยม หรือ Micro-USB)</b> เข้าคอมพิวเตอร์</li>
-                <li><b>พอร์ต Serial:</b> กดปุ่ม <b>"🔄 Scan"</b> เพื่อค้นหาพอร์ต เช่น <code>/dev/ttyUSB0</code> หรือ <code>/dev/ttyACM0</code></li>
-                <li><b>Baud Rate:</b> ตั้งค่าเริ่มต้นที่ <code>115200</code></li>
-                <li><b>สิทธิ์พอร์ต:</b> ตรวจสอบว่า User อยู่ในกลุ่ม <code>dialout</code> แล้ว</li>
-            </ul>
+        <h3 style="color: #60A5FA; margin-top: 0;">คำแนะนำไดรเวอร์และการเชื่อมต่อ Dobot:</h3>
+        
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 6px;">
+            <b style="color: #34D399; font-size: 13px;">1. Custom Protocol Driver (USB to UART - แนะนำ)</b>
+            <div style="color: #CBD5E1; font-size: 11px; margin: 3px 0 0 8px;">
+                • สื่อสารไบนารีระดับล่าง (Protocol v1.1.x) ความเร็วสูงและเสถียรที่สุด<br>
+                • รองรับ Continuous Jogging และ Real-time Latency Watchdog เต็มรูปแบบ
+            </div>
         </div>
 
-        <div style="margin-bottom: 12px;">
-            <b style="color: #60A5FA; font-size: 14px;">2. Simulation Mode (โหมดจำลอง)</b>
-            <ul style="color: #CBD5E1; margin: 4px 0 0 16px;">
-                <li>ใช้งานได้ทันที<b>โดยไม่ต้องต่อหุ่นยนต์จริง</b> สำหรับทดสอบหน้าจอ UI และตรรกะการซ้อนลูกบาศก์</li>
-                <li>จำลองการเคลื่อนที่ Kinematics, ค่าพิกัด, สัญญาณ ROS 2 ครบถ้วน 100%</li>
-            </ul>
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 6px;">
+            <b style="color: #60A5FA; font-size: 13px;">2. pydobot Driver (Dobot 1 Library - v1.3.2)</b>
+            <div style="color: #CBD5E1; font-size: 11px; margin: 3px 0 0 8px;">
+                • ใช้งานผ่านไลบรารีชุมชน <code>pydobot</code> (โดย Luis Mesas)<br>
+                • ควบคุมพิกัด Point-to-Point, Suction Cup และ Jogging แบบ Step
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 6px;">
+            <b style="color: #F59E0B; font-size: 13px;">3. pydobot2 Driver (Dobot 2 Library - v0.1.0)</b>
+            <div style="color: #CBD5E1; font-size: 11px; margin: 3px 0 0 8px;">
+                • ใช้งานผ่านไลบรารี <code>pydobot2</code> (โดย Zdenek Materna)<br>
+                • รองรับ Jogging แกน X, Y, Z, R และฟังก์ชันล้างข้อผิดพลาด (Clear Alarms) ในตัว
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 6px;">
+            <b style="color: #A78BFA; font-size: 13px;">4. Dobot MG400 / CR Series (TCP/IP)</b>
+            <div style="color: #CBD5E1; font-size: 11px; margin: 3px 0 0 8px;">
+                • สำหรับแขนกลอุตสาหกรรม เชื่อมต่อผ่าน LAN IP: <code>192.168.1.6:29999</code>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 6px;">
+            <b style="color: #94A3B8; font-size: 13px;">5. Simulation Mode (โหมดจำลอง)</b>
+            <div style="color: #CBD5E1; font-size: 11px; margin: 3px 0 0 8px;">
+                • ใช้งานได้ทันทีโดยไม่ต้องต่อฮาร์ดแวร์จริง จำลองการซ้อนลูกบาศก์และสัญญาณ ROS 2 ได้ 100%
+            </div>
         </div>
         """)
         guide_layout.addWidget(guide_text)
@@ -187,7 +212,10 @@ class ConnectionTab(QtWidgets.QWidget):
         model_map = {
             0: "auto",
             1: "magician",
-            2: "mock"
+            2: "pydobot",
+            3: "pydobot2",
+            4: "mg400",
+            5: "mock"
         }
         model_type = model_map.get(model_idx, "auto")
 
