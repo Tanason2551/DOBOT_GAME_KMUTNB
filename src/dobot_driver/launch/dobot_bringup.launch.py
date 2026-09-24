@@ -12,7 +12,7 @@ def generate_launch_description():
 
     model_arg = DeclareLaunchArgument(
         "model_type", default_value="auto",
-        description="Dobot model ('magician', 'mg400', 'mock', 'auto')"
+        description="Dobot model ('magician', 'pydobot', 'pydobot2', 'mg400', 'mock', 'auto')"
     )
     port_arg = DeclareLaunchArgument(
         "port", default_value="",

@@ -40,12 +40,14 @@ class SlotData:
 class Grid3x3Model:
     """Manages the 3x3 Arena grid, slot positions, cube colors, and stacking logic."""
 
-    def __init__(self, cube_height: float = 25.0, z_safe: float = 80.0, center_z_ref: str = "base", place_z_offset: float = 0.0):
+    def __init__(self, cube_height: float = 25.0, z_safe: float = 80.0, center_z_ref: str = "base", place_z_offset: float = 0.0, lock_r: bool = True, locked_r_val: float = 0.0):
         self.cube_height = float(cube_height)
         self.z_safe = float(z_safe)
         self.approach_offset = 15.0  # mm above target for smooth descent
         self.center_z_ref = str(center_z_ref)  # 'base' (table ground) or 'top_of_cube'
         self.place_z_offset = float(place_z_offset)  # fine-tuning placement offset in mm
+        self.lock_r = bool(lock_r)
+        self.locked_r_val = float(locked_r_val)
 
         # 9 slots: 8 perimeter slots + 1 center slot
         # Grid layout:
@@ -110,7 +112,15 @@ class Grid3x3Model:
             self.slots[slot_id].x = round(float(x), 2)
             self.slots[slot_id].y = round(float(y), 2)
             self.slots[slot_id].z = round(float(z), 2)
-            self.slots[slot_id].r = round(float(r), 2)
+            final_r = self.locked_r_val if self.lock_r else float(r)
+            self.slots[slot_id].r = round(final_r, 2)
+
+    def apply_locked_r_to_all(self, r_val: Optional[float] = None):
+        """Apply locked R angle to all slots (S1-S8 and Center)."""
+        if r_val is not None:
+            self.locked_r_val = round(float(r_val), 2)
+        for slot in self.slots.values():
+            slot.r = self.locked_r_val
 
     def set_slot_color(self, slot_id: int, color_key: str):
         """Assign cube color to slot."""
@@ -169,6 +179,8 @@ class Grid3x3Model:
             "approach_offset": self.approach_offset,
             "center_z_ref": self.center_z_ref,
             "place_z_offset": self.place_z_offset,
+            "lock_r": self.lock_r,
+            "locked_r_val": self.locked_r_val,
             "slots": [asdict(s) for s in self.slots.values()]
         }
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
@@ -187,6 +199,8 @@ class Grid3x3Model:
             self.approach_offset = float(data.get("approach_offset", self.approach_offset))
             self.center_z_ref = str(data.get("center_z_ref", self.center_z_ref))
             self.place_z_offset = float(data.get("place_z_offset", self.place_z_offset))
+            self.lock_r = bool(data.get("lock_r", self.lock_r))
+            self.locked_r_val = float(data.get("locked_r_val", self.locked_r_val))
 
             for s_dict in data.get("slots", []):
                 s_id = s_dict.get("slot_id")

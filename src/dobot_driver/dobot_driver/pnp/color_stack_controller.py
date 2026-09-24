@@ -131,111 +131,126 @@ class ColorStackController:
 
     def _mission_worker(self, plan_items: List[Any], mode: str):
         """Main background execution loop."""
-        total_layers = len(plan_items)
-        self.log("INFO", f"Starting Cube Stacking mission for {total_layers} layers (Mode: {mode})...")
+        try:
+            total_layers = len(plan_items)
+            self.log("INFO", f"Starting Cube Stacking mission for {total_layers} layers (Mode: {mode})...")
 
-        center = self.grid_model.center_slot
-        z_safe = max(self.grid_model.z_safe, center.z + (total_layers * self.grid_model.cube_height) + 20.0)
+            center = self.grid_model.center_slot
+            z_safe = max(self.grid_model.z_safe, center.z + (total_layers * self.grid_model.cube_height) + 20.0)
 
-        # 1. Lift arm to safe travel height before doing anything
-        curr_x, curr_y, curr_z, curr_r = self.driver.get_pose()[0:4]
-        self.driver.move_ptp(curr_x, curr_y, z_safe, curr_r, wait=True)
-
-        for layer_idx, item in enumerate(plan_items):
-            if not self._check_pause_or_abort():
-                break
-
-            # Identify target pick slot
-            slot: Optional[SlotData] = None
-            target_color = "red"
-
-            if mode == "color":
-                target_color = str(item).lower()
-                slot = self.grid_model.find_slot_by_color(target_color, available_only=True)
-                if not slot:
-                    self.log("ERROR", f"No available cube of color '{target_color}' found on 3x3 grid!")
-                    self.stop()
-                    if self.callback_finished:
-                        self.callback_finished(False, f"Missing cube color: {target_color}")
-                    return
+            # 1. Lift arm to safe travel height before doing anything
+            pose = self.driver.get_pose() if self.driver else None
+            if pose and len(pose) >= 4:
+                curr_x, curr_y, curr_z, curr_r = pose[0:4]
             else:
-                slot_id = int(item)
-                slot = self.grid_model.get_slot(slot_id)
-                if not slot or not slot.has_cube:
-                    self.log("ERROR", f"Slot #{slot_id} is empty or invalid!")
-                    self.stop()
-                    if self.callback_finished:
-                        self.callback_finished(False, f"Slot #{slot_id} is empty.")
-                    return
-                target_color = slot.color
+                curr_x, curr_y, curr_z, curr_r = 220.0, 0.0, z_safe, 0.0
 
-            thai_color = COLOR_PALETTE.get(target_color, {}).get("name", target_color)
-            self.log("INFO", f"--- Layer {layer_idx + 1}/{total_layers}: Picking {thai_color} from {slot.name} ---")
+            init_r = self.grid_model.locked_r_val if self.grid_model.lock_r else curr_r
+            self.driver.move_ptp(curr_x, curr_y, z_safe, init_r, wait=True)
 
-            # --- STEP 1: Approach Pick Position at Z_safe ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_APPROACH_PICK, f"กำลังเคลื่อนที่ไปเหนือ {slot.name}")
-            self.driver.move_ptp(slot.x, slot.y, z_safe, slot.r, wait=True)
+            for layer_idx, item in enumerate(plan_items):
+                if not self._check_pause_or_abort():
+                    break
 
-            # --- STEP 2: Descend to Pick Surface ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_DESCEND_PICK, f"กำลังลดระดับลงแตะผิวลูกบาศก์ ({thai_color})")
-            self.driver.move_ptp(slot.x, slot.y, slot.z, slot.r, wait=True)
-            time.sleep(0.15)
+                # Identify target pick slot
+                slot: Optional[SlotData] = None
+                target_color = "red"
 
-            # --- STEP 3: Actuate Suction Cup ON ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_SUCTION_ON, "เปิดหัวดูดสุญญากาศ (Suction ON)")
-            self.driver.set_suction_cup(True, True)
-            time.sleep(self.profile.suction_on_delay_sec)
+                if mode == "color":
+                    target_color = str(item).lower()
+                    slot = self.grid_model.find_slot_by_color(target_color, available_only=True)
+                    if not slot:
+                        self.log("ERROR", f"No available cube of color '{target_color}' found on 3x3 grid!")
+                        self.stop()
+                        if self.callback_finished:
+                            self.callback_finished(False, f"Missing cube color: {target_color}")
+                        return
+                else:
+                    slot_id = int(item)
+                    slot = self.grid_model.get_slot(slot_id)
+                    if not slot or not slot.has_cube:
+                        self.log("ERROR", f"Slot #{slot_id} is empty or invalid!")
+                        self.stop()
+                        if self.callback_finished:
+                            self.callback_finished(False, f"Slot #{slot_id} is empty.")
+                        return
+                    target_color = slot.color
 
-            # --- STEP 4: Lift up to Z_safe with Cube ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_LIFT_SAFE, f"ยกลูกบาศก์ {thai_color} ขึ้นสู่ระดับปลอดภัย")
-            self.driver.move_ptp(slot.x, slot.y, z_safe, slot.r, wait=True)
+                thai_color = COLOR_PALETTE.get(target_color, {}).get("name", target_color)
+                self.log("INFO", f"--- Layer {layer_idx + 1}/{total_layers}: Picking {thai_color} from {slot.name} ---")
 
-            # Mark slot as picked on model
-            self.grid_model.mark_picked(slot.slot_id)
+                # Determine R orientation (strictly enforce locked_r_val if lock_r is enabled)
+                pick_r = self.grid_model.locked_r_val if self.grid_model.lock_r else slot.r
+                place_r = self.grid_model.locked_r_val if self.grid_model.lock_r else center.r
 
-            # --- STEP 5: Travel to Center at Z_safe ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_APPROACH_CENTER, f"นำลูกบาศก์ไปยังจุด Center (ชั้นที่ {layer_idx + 1})")
-            self.driver.move_ptp(center.x, center.y, z_safe, center.r, wait=True)
+                # --- STEP 1: Approach Pick Position at Z_safe ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_APPROACH_PICK, f"กำลังเคลื่อนที่ไปเหนือ {slot.name}")
+                self.driver.move_ptp(slot.x, slot.y, z_safe, pick_r, wait=True)
 
-            # Calculate Place Z for this layer
-            target_place_z = self.grid_model.calculate_place_z(layer_idx)
+                # --- STEP 2: Descend to Pick Surface ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_DESCEND_PICK, f"กำลังลดระดับลงแตะผิวลูกบาศก์ ({thai_color})")
+                self.driver.move_ptp(slot.x, slot.y, slot.z, pick_r, wait=True)
+                time.sleep(0.15)
 
-            # --- STEP 6: Descend to Stacking Level ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_DESCEND_PLACE, f"วางซ้อนลงบนชั้นที่ {layer_idx + 1} (Z={target_place_z:.1f}mm)")
-            self.driver.move_ptp(center.x, center.y, target_place_z, center.r, wait=True)
-            time.sleep(0.15)
+                # --- STEP 3: Actuate Suction Cup ON ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_SUCTION_ON, "เปิดหัวดูดสุญญากาศ (Suction ON)")
+                self.driver.set_suction_cup(True, True)
+                time.sleep(self.profile.suction_on_delay_sec)
 
-            # --- STEP 7: Actuate Suction Cup OFF ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_SUCTION_OFF, f"คลายแรงดูด ปล่อยชิ้นงาน {thai_color}")
-            self.driver.set_suction_cup(True, False)
-            time.sleep(self.profile.suction_off_delay_sec)
-            self.driver.set_suction_cup(False, False)
+                # --- STEP 4: Lift up to Z_safe with Cube ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_LIFT_SAFE, f"ยกลูกบาศก์ {thai_color} ขึ้นสู่ระดับปลอดภัย")
+                self.driver.move_ptp(slot.x, slot.y, z_safe, pick_r, wait=True)
 
-            # --- STEP 8: Retract straight up to Z_safe ---
-            if not self._check_pause_or_abort(): break
-            self._set_state(self.STATE_RETRACT_SAFE, "ยกแขนกลับสู่ระดับปลอดภัย")
-            self.driver.move_ptp(center.x, center.y, z_safe, center.r, wait=True)
+                # Mark slot as picked on model
+                self.grid_model.mark_picked(slot.slot_id)
 
-            # Record stacked layer
-            self.grid_model.add_stacked_layer(target_color)
-            if self.callback_layer:
-                self.callback_layer(layer_idx + 1, total_layers, target_color)
+                # --- STEP 5: Travel to Center at Z_safe ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_APPROACH_CENTER, f"นำลูกบาศก์ไปยังจุด Center (ชั้นที่ {layer_idx + 1})")
+                self.driver.move_ptp(center.x, center.y, z_safe, place_r, wait=True)
 
-            self.log("CMD", f"Layer {layer_idx + 1}/{total_layers} ({thai_color}) placed successfully!")
-            time.sleep(0.4)
+                # Calculate Place Z for this layer
+                target_place_z = self.grid_model.calculate_place_z(layer_idx)
 
-        with self._lock:
-            self.is_running = False
+                # --- STEP 6: Descend to Stacking Level ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_DESCEND_PLACE, f"วางซ้อนลงบนชั้นที่ {layer_idx + 1} (Z={target_place_z:.1f}mm)")
+                self.driver.move_ptp(center.x, center.y, target_place_z, place_r, wait=True)
+                time.sleep(0.15)
 
-        if self.current_state != self.STATE_ABORTED:
-            self._set_state(self.STATE_COMPLETED, "ภารกิจเสร็จสิ้นสมบูรณ์!")
-            self.log("INFO", "🎉 Mission Completed Successfully!")
+                # --- STEP 7: Actuate Suction Cup OFF ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_SUCTION_OFF, f"คลายแรงดูด ปล่อยชิ้นงาน {thai_color}")
+                self.driver.set_suction_cup(True, False)
+                time.sleep(self.profile.suction_off_delay_sec)
+                self.driver.set_suction_cup(False, False)
+
+                # --- STEP 8: Retract straight up to Z_safe ---
+                if not self._check_pause_or_abort(): break
+                self._set_state(self.STATE_RETRACT_SAFE, "ยกแขนกลับสู่ระดับปลอดภัย")
+                self.driver.move_ptp(center.x, center.y, z_safe, place_r, wait=True)
+
+                # Record stacked layer
+                self.grid_model.add_stacked_layer(target_color)
+                if self.callback_layer:
+                    self.callback_layer(layer_idx + 1, total_layers, target_color)
+
+                self.log("CMD", f"Layer {layer_idx + 1}/{total_layers} ({thai_color}) placed successfully!")
+                time.sleep(0.4)
+
+            if self.current_state != self.STATE_ABORTED:
+                self._set_state(self.STATE_COMPLETED, "ภารกิจเสร็จสิ้นสมบูรณ์!")
+                self.log("INFO", "🎉 Mission Completed Successfully!")
+                if self.callback_finished:
+                    self.callback_finished(True, "ภารกิจเสร็จสิ้นสมบูรณ์!")
+        except Exception as e:
+            self.log("ERROR", f"ข้อผิดพลาดระหว่างปฏิบัติภารกิจ: {e}")
             if self.callback_finished:
-                self.callback_finished(True, "ภารกิจเสร็จสิ้นสมบูรณ์!")
+                self.callback_finished(False, f"เกิดข้อผิดพลาด: {e}")
+        finally:
+            with self._lock:
+                self.is_running = False
